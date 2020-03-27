@@ -53,8 +53,9 @@ def test_port(host, port, timeout=1.0):
         except socket.error:
             return False
 
+
 def progress_bar(progress, bar_len=PROGRESS_DISPLAY_LEN):
-    return "[{: <{}}] ({:.0%})".format("=" * int(bar_len * progress), bar_len, progress)
+    return "[{: <{}}] ({:4.0%})".format("=" * int(bar_len * progress), bar_len, progress)
 
 
 def scan_rooms(pc_count=16, timeout=1.0, verbose=False):
@@ -67,7 +68,7 @@ def scan_rooms(pc_count=16, timeout=1.0, verbose=False):
         for pc_id in range(1, pc_count + 1):
             host = HOSTNAME_TEMPLATE.format(room_id, pc_id)
             if verbose:
-                print("\r{} {}".format(progress_bar(n / total_count), host), end='')
+                print("\r{} {: <30}".format(progress_bar(n / total_count), host), end='')
                 n += 1
             answers = [protocol for protocol, port in PORTS.items() if test_port(host, port, timeout)]
             if answers:
@@ -76,7 +77,7 @@ def scan_rooms(pc_count=16, timeout=1.0, verbose=False):
         if online_pcs:
             rooms.append({"name": room_name, "online_pcs": online_pcs})
     if verbose:
-        print("\r{}".format(progress_bar(1)))
+        print("\r{} {: <30}".format(progress_bar(1), "Done!"))
     return rooms
 
 
