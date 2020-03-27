@@ -19,6 +19,7 @@ TIMEOUT = 1.0
 LOOP_DELAY = None
 OUTPUT_FORMAT = "text"
 OUTPUT_BASENAME = "tc_pc_scan"
+PROGRESS_DISPLAY_LEN = 32
 
 
 def parse_args():
@@ -28,6 +29,7 @@ def parse_args():
     parser.add_argument("--loop-delay", "-d", type=float, default=LOOP_DELAY)
     parser.add_argument("--output-format", "-f", choices=["pickle", "pkl", "text", "txt", "json"], default=OUTPUT_FORMAT)
     parser.add_argument("--output-file", "-o")
+    parser.add_argument("--verbose", "-v", action="store_true")
 
     args = parser.parse_args()
 
@@ -51,18 +53,30 @@ def test_port(host, port, timeout=1.0):
         except socket.error:
             return False
 
+def progress_bar(progress, bar_len=PROGRESS_DISPLAY_LEN):
+    return "[{: <{}}] ({:.0%})".format("=" * int(bar_len * progress), bar_len, progress)
 
-def scan_rooms(pc_count=16, timeout=1.0):
+
+def scan_rooms(pc_count=16, timeout=1.0, verbose=False):
     rooms = []
+    if verbose:
+        total_count = len(ROOMS) * pc_count
+        n = 0
     for room_name, room_id in ROOMS.items():
         online_pcs = []
         for pc_id in range(1, pc_count + 1):
             host = HOSTNAME_TEMPLATE.format(room_id, pc_id)
+            if verbose:
+                print("\r{} {}".format(progress_bar(n / total_count), host), end='')
+                n += 1
             answers = [protocol for protocol, port in PORTS.items() if test_port(host, port, timeout)]
             if answers:
                 online_pcs.append({"id": pc_id, "host_name": host, "protocols": answers})
+
         if online_pcs:
             rooms.append({"name": room_name, "online_pcs": online_pcs})
+    if verbose:
+        print("\r{}".format(progress_bar(1)))
     return rooms
 
 
@@ -74,9 +88,10 @@ def save_pickle(rooms, output_file):
 def save_text(rooms, output_file):
     with open(output_file, 'w') as f:
         for room in rooms:
-            f.write("{:-^33}\n".format(room["name"]))
+            f.write("{:-^37}\n".format(room["name"]))
             for pc in room["online_pcs"]:
-                f.write("  {: >7} {}\n".format("/".join(pc["protocols"]), pc["host_name"]))
+                f.write("  {: >7}  {}\n".format("/".join(pc["protocols"]), pc["host_name"]))
+            f.write("\n")
 
 
 def save_json(rooms, output_file):
@@ -86,7 +101,7 @@ def save_json(rooms, output_file):
 
 def main(args):
     while True:
-        rooms = scan_rooms(args.pc_count, args.timeout)
+        rooms = scan_rooms(args.pc_count, args.timeout, args.verbose)
 
         if args.output_format == "pkl":
             save_pickle(rooms, args.output_file)
