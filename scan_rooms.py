@@ -15,7 +15,7 @@ ROOMS = {"TP Info A": 8,
          "Radiocom": 203}
 HOSTNAME_TEMPLATE = "tc405-{:03d}-{:02d}.insa-lyon.fr"
 PC_COUNT = 16
-TIMEOUT = 1.0
+TIMEOUT = 0.5
 LOOP_DELAY = None
 OUTPUT_FORMAT = "text"
 OUTPUT_BASENAME = "tc_pc_scan"
@@ -24,6 +24,7 @@ PROGRESS_DISPLAY_LEN = 32
 
 def parse_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument("room_names", nargs="*", choices=["all"] + list(ROOMS), default="all")
     parser.add_argument("--pc-count", "-c", type=int, default=PC_COUNT)
     parser.add_argument("--timeout", "-t", type=float, default=TIMEOUT)
     parser.add_argument("--loop-delay", "-d", type=float, default=LOOP_DELAY)
@@ -32,6 +33,9 @@ def parse_args():
     parser.add_argument("--verbose", "-v", action="store_true")
 
     args = parser.parse_args()
+
+    if args.room_names == "all":
+        args.room_names = list(ROOMS)
 
     if args.output_format == "pickle":
         args.output_format = "pkl"
@@ -58,12 +62,13 @@ def progress_bar(progress, bar_len=PROGRESS_DISPLAY_LEN):
     return "[{: <{}}] ({:4.0%})".format("=" * int(bar_len * progress), bar_len, progress)
 
 
-def scan_rooms(pc_count=16, timeout=1.0, verbose=False):
+def scan_rooms(room_names, pc_count=16, timeout=1.0, verbose=False):
     rooms = []
     if verbose:
-        total_count = len(ROOMS) * pc_count
+        total_count = len(room_names) * pc_count
         n = 0
-    for room_name, room_id in ROOMS.items():
+    for room_name in room_names:
+        room_id = ROOMS[room_name]
         online_pcs = []
         for pc_id in range(1, pc_count + 1):
             host = HOSTNAME_TEMPLATE.format(room_id, pc_id)
@@ -73,7 +78,6 @@ def scan_rooms(pc_count=16, timeout=1.0, verbose=False):
             answers = [protocol for protocol, port in PORTS.items() if test_port(host, port, timeout)]
             if answers:
                 online_pcs.append({"id": pc_id, "host_name": host, "protocols": answers})
-
         if online_pcs:
             rooms.append({"name": room_name, "online_pcs": online_pcs})
     if verbose:
@@ -102,7 +106,7 @@ def save_json(rooms, output_file):
 
 def main(args):
     while True:
-        rooms = scan_rooms(args.pc_count, args.timeout, args.verbose)
+        rooms = scan_rooms(args.room_names, args.pc_count, args.timeout, args.verbose)
 
         if args.output_format == "pkl":
             save_pickle(rooms, args.output_file)
